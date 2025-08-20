@@ -22,6 +22,7 @@ from .helpers import (
     compare_video_quality,
     FileWatcher,
 )
+from .assets import AssetManager, get_logo, get_window_icon, get_large_logo
 
 __all__ = [
     "ConfigManager",
@@ -46,4 +47,8 @@ __all__ = [
     "get_unique_filename",
     "compare_video_quality",
     "FileWatcher",
+    "AssetManager",
+    "get_logo",
+    "get_window_icon",
+    "get_large_logo",
 ]
