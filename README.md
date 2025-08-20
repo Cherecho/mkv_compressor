@@ -317,6 +317,14 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Changelog
 
+### v1.1.0
+- Modern dark theme GUI with advanced styling
+- Improved progress monitoring with dynamic visual feedback
+- Enhanced error handling and user experience
+- Fixed compression progress callback issues
+- Added glass morphism effects and modern UI components
+- Better file overwrite handling
+
 ### v1.0.0
 - Initial release
 - GUI and CLI interfaces

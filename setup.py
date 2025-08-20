@@ -17,7 +17,9 @@ else:
 requirements_file = Path(__file__).parent / "requirements.txt"
 if requirements_file.exists():
     with open(requirements_file, "r", encoding="utf-8") as f:
-        requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+        requirements = [
+            line.strip() for line in f if line.strip() and not line.startswith("#")
+        ]
 else:
     requirements = [
         "ffmpeg-python>=0.2.0",
@@ -45,7 +47,7 @@ doc_requirements = [
 
 setup(
     name="mkv-video-compressor",
-    version="1.0.0",
+    version="1.1.0",
     author="Your Name",
     author_email="your.email@example.com",
     description="A professional video compression tool for MKV files",
@@ -79,8 +81,14 @@ setup(
         "Environment :: MacOS X",
     ],
     keywords=[
-        "video", "compression", "mkv", "ffmpeg", "transcoding",
-        "multimedia", "video-processing", "batch-processing"
+        "video",
+        "compression",
+        "mkv",
+        "ffmpeg",
+        "transcoding",
+        "multimedia",
+        "video-processing",
+        "batch-processing",
     ],
     python_requires=">=3.8",
     install_requires=requirements,
