@@ -366,7 +366,7 @@ class ProgressWindow:
 
         # Create custom title bar first
         self._create_custom_title_bar()
-        
+
         self.setup_ui()
         self.is_cancelled = False
 
@@ -374,36 +374,36 @@ class ProgressWindow:
         """Create a custom dark title bar for the progress window."""
         try:
             # Configure grid for custom title bar
-            self.window.grid_rowconfigure(0, weight=0)   # Title bar row
-            self.window.grid_rowconfigure(1, weight=1)   # Content row
+            self.window.grid_rowconfigure(0, weight=0)  # Title bar row
+            self.window.grid_rowconfigure(1, weight=1)  # Content row
             self.window.grid_columnconfigure(0, weight=1)
 
             # Create custom title bar frame
             self.title_bar = tk.Frame(self.window, bg=ModernStyle.PRIMARY_BG, height=35)
             self.title_bar.grid(row=0, column=0, sticky="nsew")
             self.title_bar.grid_propagate(False)
-            
+
             # Title bar content
             title_frame = tk.Frame(self.title_bar, bg=ModernStyle.PRIMARY_BG)
             title_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
             self.title_bar.grid_rowconfigure(0, weight=1)
             self.title_bar.grid_columnconfigure(0, weight=1)
-            
+
             # Progress window icon and title
             title_label = tk.Label(
-                title_frame, 
-                text="🎬 Compression Progress", 
+                title_frame,
+                text="🎬 Compression Progress",
                 bg=ModernStyle.PRIMARY_BG,
                 fg=ModernStyle.TEXT_PRIMARY,
-                font=("Segoe UI", 8, "bold")  # Smaller font size
+                font=("Segoe UI", 8, "bold"),  # Smaller font size
             )
             title_label.grid(row=0, column=0, sticky="w")
-            
+
             # Window controls
             controls_frame = tk.Frame(title_frame, bg=ModernStyle.PRIMARY_BG)
             controls_frame.grid(row=0, column=1, sticky="e")
             title_frame.grid_columnconfigure(1, weight=1)
-            
+
             # Close button
             close_btn = tk.Button(
                 controls_frame,
@@ -413,13 +413,13 @@ class ProgressWindow:
                 bd=0,
                 font=("Segoe UI", 8),
                 command=self.close_window,
-                relief="flat"
+                relief="flat",
             )
             close_btn.grid(row=0, column=0, padx=2)
-            
+
             # Make title bar draggable
             self._make_draggable(self.title_bar)
-            
+
         except Exception as e:
             # Fallback: restore normal window if custom title bar fails
             try:
@@ -429,6 +429,7 @@ class ProgressWindow:
 
     def _make_draggable(self, widget):
         """Make the title bar draggable to move the window."""
+
         def start_move(event):
             widget.start_x = event.x
             widget.start_y = event.y
@@ -438,7 +439,7 @@ class ProgressWindow:
             widget.start_y = None
 
         def do_move(event):
-            if hasattr(widget, 'start_x') and widget.start_x is not None:
+            if hasattr(widget, "start_x") and widget.start_x is not None:
                 deltax = event.x - widget.start_x
                 deltay = event.y - widget.start_y
                 x = self.window.winfo_x() + deltax
@@ -448,7 +449,7 @@ class ProgressWindow:
         widget.bind("<Button-1>", start_move)
         widget.bind("<ButtonRelease-1>", stop_move)
         widget.bind("<B1-Motion>", do_move)
-        
+
         # Also bind to all child widgets
         for child in widget.winfo_children():
             if isinstance(child, (tk.Label, tk.Frame)):
@@ -864,24 +865,24 @@ class CompressorGUI:
         self.root.geometry("1100x800")
         self.root.minsize(1000, 700)
         self.root.configure(bg=ModernStyle.PRIMARY_BG)
-        
+
         # Setup proper window close handling
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
-        
+
         # Additional dark mode window styling
         try:
             # Center the window on screen
-            self.root.eval('tk::PlaceWindow . center')
-            
+            self.root.eval("tk::PlaceWindow . center")
+
             # Set window to appear on top during startup for better visibility
-            self.root.attributes('-topmost', True)
-            self.root.after(100, lambda: self.root.attributes('-topmost', False))
+            self.root.attributes("-topmost", True)
+            self.root.after(100, lambda: self.root.attributes("-topmost", False))
         except Exception as e:
             self.logger.warning(f"Failed to apply window styling: {e}")
 
         # Set custom window icon and enable dark title bar
         self._configure_window_appearance()
-        
+
         # Configure window icon BEFORE making it borderless (important for taskbar)
         self._set_window_icon_early()
 
@@ -893,10 +894,10 @@ class CompressorGUI:
                 # Set the ICO icon first
                 self.root.iconbitmap(icon_path)
                 self.logger.info(f"Set early window icon: {icon_path}")
-                
+
                 # Force the window to update its icon in the taskbar
                 self.root.update_idletasks()
-                
+
         except Exception as e:
             self.logger.warning(f"Failed to set early window icon: {e}")
 
@@ -908,7 +909,7 @@ class CompressorGUI:
             if icon_path:
                 self.root.iconbitmap(icon_path)
                 self.logger.info(f"Set window icon: {icon_path}")
-                
+
                 # For borderless windows, also set the icon using iconphoto for better compatibility
                 try:
                     # Load the icon as PhotoImage for additional icon setting
@@ -935,22 +936,25 @@ class CompressorGUI:
         try:
             # Enable transparency and modern window effects (Windows 10/11)
             self.root.wm_attributes("-alpha", 0.99)  # Slight transparency
-            
+
             # Check user preference for dark mode method
             dark_mode_config = self._load_dark_mode_config()
-            
+
             # For Windows: enable dark mode window styling
             if hasattr(self.root, "wm_attributes"):
                 try:
                     # Windows 10/11 dark mode title bar
                     import sys
+
                     if sys.platform == "win32":
                         if dark_mode_config.get("force_custom_titlebar", False):
-                            self.logger.info("User configured: Force custom title bar (will be created later)")
+                            self.logger.info(
+                                "User configured: Force custom title bar (will be created later)"
+                            )
                             # Custom title bar will be created in _create_main_interface after logos load
                         else:
                             self._enable_windows_dark_mode()
-                    
+
                     self.root.wm_attributes("-transparentcolor", "")
                 except:
                     pass
@@ -962,14 +966,14 @@ class CompressorGUI:
         try:
             import json
             from pathlib import Path
-            
+
             config_file = Path.home() / ".config" / "mkv-compressor" / "dark_mode.json"
             if config_file.exists():
-                with open(config_file, 'r') as f:
+                with open(config_file, "r") as f:
                     return json.load(f)
         except Exception as e:
             self.logger.debug(f"Could not load dark mode config: {e}")
-        
+
         # Default configuration
         return {"dark_mode_method": "auto", "force_custom_titlebar": False}
 
@@ -979,47 +983,50 @@ class CompressorGUI:
             import ctypes
             from ctypes import wintypes
             import sys
-            
+
             # Wait for window to be fully created
             self.root.update_idletasks()
-            
+
             # Get window handle
             hwnd = self.root.winfo_id()
-            
+
             # Try different dark mode approaches for different Windows versions
             success = False
-            
+
             # Method 1: Force dark mode registry approach
             try:
                 # Check if system is in dark mode
                 import winreg
-                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
-                                   r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+
+                key = winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER,
+                    r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
+                )
                 apps_use_light_theme = winreg.QueryValueEx(key, "AppsUseLightTheme")[0]
                 winreg.CloseKey(key)
-                
+
                 if apps_use_light_theme == 0:  # System is in dark mode
                     self.logger.info("System is in dark mode, applying window styling")
-                
+
             except:
                 pass
-            
+
             # Method 2: Windows 11/newer Windows 10 builds (attribute 20)
             try:
                 DWMWA_USE_IMMERSIVE_DARK_MODE = 20
                 value = ctypes.c_int(1)
                 result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                    hwnd, 
+                    hwnd,
                     DWMWA_USE_IMMERSIVE_DARK_MODE,
                     ctypes.byref(value),
-                    ctypes.sizeof(value)
+                    ctypes.sizeof(value),
                 )
                 if result == 0:
                     success = True
                     self.logger.info("Dark mode title bar enabled (attribute 20)")
             except Exception as e:
                 self.logger.debug(f"Method 2 failed: {e}")
-            
+
             # Method 3: Alternative approach for older Windows 10 (attribute 19)
             if not success:
                 try:
@@ -1029,30 +1036,34 @@ class CompressorGUI:
                         hwnd,
                         DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1,
                         ctypes.byref(value),
-                        ctypes.sizeof(value)
+                        ctypes.sizeof(value),
                     )
                     if result == 0:
                         success = True
                         self.logger.info("Dark mode title bar enabled (attribute 19)")
                 except Exception as e:
                     self.logger.debug(f"Method 3 failed: {e}")
-            
+
             # Method 4: Set window theme manually
             if not success:
                 try:
                     # Try to set dark theme using SetWindowTheme
-                    ctypes.windll.uxtheme.SetWindowTheme(hwnd, "DarkMode_Explorer", None)
+                    ctypes.windll.uxtheme.SetWindowTheme(
+                        hwnd, "DarkMode_Explorer", None
+                    )
                     success = True
                     self.logger.info("Dark theme applied using SetWindowTheme")
                 except Exception as e:
                     self.logger.debug(f"Method 4 failed: {e}")
-            
+
             # Method 5: Use custom borderless window approach
             if not success:
-                self.logger.warning("Native dark mode not available, using custom approach")
+                self.logger.warning(
+                    "Native dark mode not available, using custom approach"
+                )
                 self._create_custom_dark_titlebar()
                 return
-                
+
         except Exception as e:
             self.logger.warning(f"Failed to set dark title bar: {e}")
             self._create_custom_dark_titlebar()
@@ -1062,20 +1073,20 @@ class CompressorGUI:
         try:
             # Option 1: Create borderless window with custom title bar
             self.logger.info("Creating custom dark title bar")
-            
+
             # Store original geometry
             geometry = self.root.geometry()
-            
+
             # Force icon update before going borderless
             try:
                 self.root.update()
                 self.root.focus_force()
             except:
                 pass
-            
+
             # Make window borderless
             self.root.overrideredirect(True)
-            
+
             # Try to maintain taskbar presence after going borderless
             try:
                 # Set window attributes to try to keep it in taskbar
@@ -1083,50 +1094,52 @@ class CompressorGUI:
                 self.root.update_idletasks()
             except:
                 pass
-            
+
             # Ensure grid is used consistently on root (avoid mixing pack/grid)
-            self.root.grid_rowconfigure(0, weight=0)   # Title bar row
-            self.root.grid_rowconfigure(1, weight=1)   # Content row
+            self.root.grid_rowconfigure(0, weight=0)  # Title bar row
+            self.root.grid_rowconfigure(1, weight=1)  # Content row
             self.root.grid_columnconfigure(0, weight=1)
 
             # Create custom title bar frame (using grid)
             self.title_bar = tk.Frame(self.root, bg=ModernStyle.PRIMARY_BG, height=35)
             self.title_bar.grid(row=0, column=0, sticky="nsew")
             self.title_bar.grid_propagate(False)
-            
+
             # Title bar content
             title_frame = tk.Frame(self.title_bar, bg=ModernStyle.PRIMARY_BG)
             title_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
             self.title_bar.grid_rowconfigure(0, weight=1)
             self.title_bar.grid_columnconfigure(0, weight=1)
-            
+
             # App icon and title (use smaller logo for title bar)
             if self.app_logo:
                 # Create a smaller version of the logo for the title bar
                 try:
                     small_logo = get_logo(size=(24, 24))  # Much smaller for title bar
                     if small_logo:
-                        icon_label = tk.Label(title_frame, image=small_logo, bg=ModernStyle.PRIMARY_BG)
+                        icon_label = tk.Label(
+                            title_frame, image=small_logo, bg=ModernStyle.PRIMARY_BG
+                        )
                         icon_label.grid(row=0, column=0, padx=(0, 8), sticky="w")
                         # Keep reference to prevent garbage collection
                         self.title_bar_logo = small_logo
                 except:
                     pass
-            
+
             title_label = tk.Label(
-                title_frame, 
-                text="MKV Video Compressor", 
+                title_frame,
+                text="MKV Video Compressor",
                 bg=ModernStyle.PRIMARY_BG,
                 fg=ModernStyle.TEXT_PRIMARY,
-                font=("Segoe UI", 8, "bold")  # Smaller font size
+                font=("Segoe UI", 8, "bold"),  # Smaller font size
             )
             title_label.grid(row=0, column=1, sticky="w")
-            
+
             # Window controls
             controls_frame = tk.Frame(title_frame, bg=ModernStyle.PRIMARY_BG)
             controls_frame.grid(row=0, column=2, sticky="e")
             title_frame.grid_columnconfigure(2, weight=1)
-            
+
             # Minimize button
             min_btn = tk.Button(
                 controls_frame,
@@ -1136,10 +1149,10 @@ class CompressorGUI:
                 bd=0,
                 font=("Segoe UI", 8),
                 command=lambda: self.root.iconify(),
-                relief="flat"
+                relief="flat",
             )
             min_btn.grid(row=0, column=0, padx=2)
-            
+
             # Close button
             close_btn = tk.Button(
                 controls_frame,
@@ -1149,18 +1162,18 @@ class CompressorGUI:
                 bd=0,
                 font=("Segoe UI", 8),
                 command=self._on_closing,
-                relief="flat"
+                relief="flat",
             )
             close_btn.grid(row=0, column=1, padx=2)
-            
+
             # Make title bar draggable
             self._make_draggable(self.title_bar)
-            
+
             # Restore geometry
             self.root.geometry(geometry)
-            
+
             self.logger.info("Custom dark title bar created successfully")
-            
+
         except Exception as e:
             self.logger.error(f"Failed to create custom title bar: {e}")
             # Fallback: restore normal window
@@ -1171,6 +1184,7 @@ class CompressorGUI:
 
     def _make_draggable(self, widget):
         """Make a widget draggable to move the window."""
+
         def start_move(event):
             widget.start_x = event.x
             widget.start_y = event.y
@@ -1180,7 +1194,7 @@ class CompressorGUI:
             widget.start_y = None
 
         def do_move(event):
-            if hasattr(widget, 'start_x') and widget.start_x is not None:
+            if hasattr(widget, "start_x") and widget.start_x is not None:
                 deltax = event.x - widget.start_x
                 deltay = event.y - widget.start_y
                 x = self.root.winfo_x() + deltax
@@ -1190,7 +1204,7 @@ class CompressorGUI:
         widget.bind("<Button-1>", start_move)
         widget.bind("<ButtonRelease-1>", stop_move)
         widget.bind("<B1-Motion>", do_move)
-        
+
         # Also bind to all child widgets
         for child in widget.winfo_children():
             if isinstance(child, (tk.Label, tk.Frame)):
@@ -1203,11 +1217,11 @@ class CompressorGUI:
         try:
             # Remove window border for a more modern look (optional fallback)
             # self.root.configure(relief='flat', bd=0)
-            
+
             # Add a subtle dark border effect
             self.root.configure(highlightbackground=ModernStyle.BORDER_COLOR)
             self.root.configure(highlightcolor=ModernStyle.ACCENT_PRIMARY)
-            
+
             self.logger.info("Applied alternative dark styling")
         except Exception as e:
             self.logger.warning(f"Failed to apply alternative dark styling: {e}")
@@ -1254,27 +1268,37 @@ class CompressorGUI:
         """Setup the modern user interface."""
         # Initialize status variable for status updates
         self.status_var = tk.StringVar(value="Ready")
-        
+
         # Determine the starting row based on whether we have a custom title bar
-        start_row = 1 if hasattr(self, 'title_bar') else 0
-        
+        start_row = 1 if hasattr(self, "title_bar") else 0
+
         # Main container with minimal padding when custom title bar is present
-        padding_top = "0" if hasattr(self, 'title_bar') else "0"
-        
+        padding_top = "0" if hasattr(self, "title_bar") else "0"
+
         # Main container with padding (always use grid on root)
-        main_container = ttk.Frame(self.root, style="Modern.TFrame", padding=f"{padding_top} 0 0 0")
-        main_container.grid(row=start_row, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=0, pady=(0, 0))
+        main_container = ttk.Frame(
+            self.root, style="Modern.TFrame", padding=f"{padding_top} 0 0 0"
+        )
+        main_container.grid(
+            row=start_row,
+            column=0,
+            sticky=(tk.W, tk.E, tk.N, tk.S),
+            padx=0,
+            pady=(0, 0),
+        )
 
         # Configure root grid if not already done
-        if not hasattr(self, 'title_bar'):
+        if not hasattr(self, "title_bar"):
             self.root.columnconfigure(0, weight=1)
             self.root.rowconfigure(start_row, weight=1)
-        
+
         main_container.columnconfigure(0, weight=1)
-        main_container.rowconfigure(1 if not hasattr(self, 'title_bar') else 0, weight=1)
+        main_container.rowconfigure(
+            1 if not hasattr(self, "title_bar") else 0, weight=1
+        )
 
         # Header section (only if we don't have a custom title bar)
-        if not hasattr(self, 'title_bar'):
+        if not hasattr(self, "title_bar"):
             self.create_header(main_container)
             notebook_row = 1
             notebook_pady = (10, 20)
@@ -1285,7 +1309,13 @@ class CompressorGUI:
 
         # Create modern dark notebook for tabs
         self.notebook = ttk.Notebook(main_container, style="Modern.TNotebook")
-        self.notebook.grid(row=notebook_row, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=20, pady=notebook_pady)
+        self.notebook.grid(
+            row=notebook_row,
+            column=0,
+            sticky=(tk.W, tk.E, tk.N, tk.S),
+            padx=20,
+            pady=notebook_pady,
+        )
 
         # Main compression tab
         self.main_frame = ttk.Frame(self.notebook, style="Modern.TFrame")
@@ -1305,7 +1335,6 @@ class CompressorGUI:
         self.about_frame.rowconfigure(0, weight=1)
         self.notebook.add(self.about_frame, text="ℹ️ About")
         self.setup_about_tab()
-
 
     def create_header(self, parent):
         """Create modern dark header section with gradient effect."""
@@ -1691,27 +1720,29 @@ class CompressorGUI:
             self.about_frame,
             bg=ModernStyle.PRIMARY_BG,
             highlightthickness=0,
-            borderwidth=0
+            borderwidth=0,
         )
         scrollbar = ttk.Scrollbar(
             self.about_frame,
             orient="vertical",
             command=canvas.yview,
-            style="Modern.Vertical.TScrollbar"
+            style="Modern.Vertical.TScrollbar",
         )
         canvas.configure(yscrollcommand=scrollbar.set)
 
         # Grid the canvas and scrollbar
         canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
-        
+
         # Configure grid weights
         self.about_frame.grid_rowconfigure(0, weight=1)
         self.about_frame.grid_columnconfigure(0, weight=1)
 
         # Create scrollable frame inside canvas
         scrollable_frame = ttk.Frame(canvas, style="Modern.TFrame")
-        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas_window = canvas.create_window(
+            (0, 0), window=scrollable_frame, anchor="nw"
+        )
 
         # Configure scrollable frame to expand
         scrollable_frame.grid_rowconfigure(0, weight=1)
@@ -1719,7 +1750,9 @@ class CompressorGUI:
 
         # Main container with reduced side padding to use more width
         about_container = ttk.Frame(
-            scrollable_frame, style="Modern.TFrame", padding="30 30 10 30"  # top, right, bottom, left
+            scrollable_frame,
+            style="Modern.TFrame",
+            padding="30 30 10 30",  # top, right, bottom, left
         )
         about_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         about_container.columnconfigure(0, weight=1)
@@ -1738,17 +1771,17 @@ class CompressorGUI:
         # Bind scroll events
         scrollable_frame.bind("<Configure>", configure_scroll_region)
         canvas.bind("<Configure>", configure_scroll_region)
-        
+
         # Initial configuration to set proper width
         canvas.update_idletasks()
         configure_scroll_region()
-        
+
         # Bind mousewheel to canvas and all child widgets for smooth scrolling
         def bind_mousewheel(widget):
             widget.bind("<MouseWheel>", on_mousewheel)
             for child in widget.winfo_children():
                 bind_mousewheel(child)
-        
+
         # Bind after content is created
         self.about_frame.after(100, lambda: bind_mousewheel(self.about_frame))
 
@@ -1792,7 +1825,10 @@ class CompressorGUI:
 
         # Version and build info section
         version_section = ttk.LabelFrame(
-            about_container, text="📦 Version Information", style="Modern.TLabelframe", padding="15"
+            about_container,
+            text="📦 Version Information",
+            style="Modern.TLabelframe",
+            padding="15",
         )
         version_section.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
         version_section.columnconfigure(1, weight=1)
@@ -1814,7 +1850,7 @@ class CompressorGUI:
                 font=("Segoe UI", 9, "bold"),
             )
             label.grid(row=i, column=0, sticky=tk.W, padx=(0, 10), pady=2)
-            
+
             value = ttk.Label(
                 version_section,
                 text=value_text,
@@ -1825,14 +1861,17 @@ class CompressorGUI:
 
         # Description section
         desc_section = ttk.LabelFrame(
-            about_container, text="📝 Description", style="Modern.TLabelframe", padding="15"
+            about_container,
+            text="📝 Description",
+            style="Modern.TLabelframe",
+            padding="15",
         )
         desc_section.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
 
         desc_text = """A professional-grade video compression application designed for efficiency and ease of use. 
 Built with modern technology stack and optimized for high-quality video processing. 
 Perfect for content creators, video professionals, and anyone who needs reliable video compression."""
-        
+
         desc_label = ttk.Label(
             desc_section,
             text=desc_text,
@@ -1845,7 +1884,10 @@ Perfect for content creators, video professionals, and anyone who needs reliable
 
         # Features section
         features_section = ttk.LabelFrame(
-            about_container, text="✨ Key Features", style="Modern.TLabelframe", padding="15"
+            about_container,
+            text="✨ Key Features",
+            style="Modern.TLabelframe",
+            padding="15",
         )
         features_section.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
 
@@ -1918,7 +1960,6 @@ Perfect for content creators, video professionals, and anyone who needs reliable
             justify=tk.LEFT,
         )
         req_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
-
 
     def setup_log_handler(self):
         """Setup logging handler to display logs in GUI."""
@@ -2208,8 +2249,16 @@ Files to process: {len(self.input_files)}
                 try:
                     # Update progress window (thread-safe using root.after)
                     filename = os.path.basename(input_file)
-                    self.root.after(0, lambda f=filename: self.progress_window.update_current_file(f))
-                    self.root.after(0, lambda f=filename: self.progress_window.add_log(f"Starting: {f}"))
+                    self.root.after(
+                        0,
+                        lambda f=filename: self.progress_window.update_current_file(f),
+                    )
+                    self.root.after(
+                        0,
+                        lambda f=filename: self.progress_window.add_log(
+                            f"Starting: {f}"
+                        ),
+                    )
 
                     # Generate output filename
                     name, _ = os.path.splitext(filename)
@@ -2218,8 +2267,12 @@ Files to process: {len(self.input_files)}
                     # Setup progress callback (thread-safe)
                     def progress_callback(percentage):
                         overall_progress = ((i + percentage / 100) / total_files) * 100
-                        self.root.after(0, lambda p=overall_progress, msg=f"File {i+1}/{total_files}": 
-                                      self.progress_window.update_progress(p, msg))
+                        self.root.after(
+                            0,
+                            lambda p=overall_progress, msg=f"File {i+1}/{total_files}": self.progress_window.update_progress(
+                                p, msg
+                            ),
+                        )
 
                     # Compress video
                     success = self.compressor.compress_video(
@@ -2232,44 +2285,85 @@ Files to process: {len(self.input_files)}
 
                     if success:
                         successful += 1
-                        self.root.after(0, lambda f=filename: self.progress_window.add_log(f"✓ Completed: {f}"))
+                        self.root.after(
+                            0,
+                            lambda f=filename: self.progress_window.add_log(
+                                f"✓ Completed: {f}"
+                            ),
+                        )
                         # Ensure progress shows 100% for this file
                         overall_progress = ((i + 1) / total_files) * 100
-                        self.root.after(0, lambda p=overall_progress, msg=f"File {i+1}/{total_files} completed": 
-                                      self.progress_window.update_progress(p, msg))
+                        self.root.after(
+                            0,
+                            lambda p=overall_progress, msg=f"File {i+1}/{total_files} completed": self.progress_window.update_progress(
+                                p, msg
+                            ),
+                        )
                     else:
-                        self.root.after(0, lambda f=filename: self.progress_window.add_log(f"✗ Failed: {f}"))
+                        self.root.after(
+                            0,
+                            lambda f=filename: self.progress_window.add_log(
+                                f"✗ Failed: {f}"
+                            ),
+                        )
 
                 except Exception as e:
-                    self.root.after(0, lambda f=filename, err=str(e): 
-                                  self.progress_window.add_log(f"✗ Error processing {f}: {err}"))
+                    self.root.after(
+                        0,
+                        lambda f=filename, err=str(e): self.progress_window.add_log(
+                            f"✗ Error processing {f}: {err}"
+                        ),
+                    )
 
             # Compression finished
             if not self.progress_window.is_cancelled:
-                self.root.after(0, lambda: self.progress_window.update_progress(100, "All files processed"))
-                self.root.after(0, lambda: self.progress_window.compression_finished(successful > 0))
+                self.root.after(
+                    0,
+                    lambda: self.progress_window.update_progress(
+                        100, "All files processed"
+                    ),
+                )
+                self.root.after(
+                    0, lambda: self.progress_window.compression_finished(successful > 0)
+                )
 
                 # Show notification if enabled
                 if self.show_notifications_var.get():
                     if successful == total_files:
-                        self.root.after(0, lambda: messagebox.showinfo(
-                            "Compression Complete",
-                            f"All {total_files} files compressed successfully!",
-                        ))
+                        self.root.after(
+                            0,
+                            lambda: messagebox.showinfo(
+                                "Compression Complete",
+                                f"All {total_files} files compressed successfully!",
+                            ),
+                        )
                     else:
-                        self.root.after(0, lambda: messagebox.showwarning(
-                            "Compression Complete",
-                            f"{successful}/{total_files} files compressed successfully.",
-                        ))
+                        self.root.after(
+                            0,
+                            lambda: messagebox.showwarning(
+                                "Compression Complete",
+                                f"{successful}/{total_files} files compressed successfully.",
+                            ),
+                        )
 
                 # Open output folder if enabled
                 if self.auto_open_output_var.get() and successful > 0:
                     self.root.after(0, lambda: os.startfile(output_dir))
 
         except Exception as e:
-            self.root.after(0, lambda err=str(e): self.progress_window.add_log(f"Critical error: {err}"))
+            self.root.after(
+                0,
+                lambda err=str(e): self.progress_window.add_log(
+                    f"Critical error: {err}"
+                ),
+            )
             self.root.after(0, lambda: self.progress_window.compression_finished(False))
-            self.root.after(0, lambda err=str(e): messagebox.showerror("Compression Error", f"An error occurred:\n{err}"))
+            self.root.after(
+                0,
+                lambda err=str(e): messagebox.showerror(
+                    "Compression Error", f"An error occurred:\n{err}"
+                ),
+            )
 
         finally:
             # Re-enable start button
@@ -2283,21 +2377,21 @@ Files to process: {len(self.input_files)}
         """Handle window closing event with proper cleanup."""
         try:
             # Stop any running compression processes
-            if hasattr(self, 'compressor') and self.compressor:
+            if hasattr(self, "compressor") and self.compressor:
                 # Add any necessary cleanup for the compressor here
                 pass
-            
+
             # Save configuration before closing
-            if hasattr(self, 'config_manager'):
+            if hasattr(self, "config_manager"):
                 try:
                     self.config_manager.save_config()
                 except Exception as e:
                     self.logger.warning(f"Failed to save config on exit: {e}")
-            
+
             # Destroy the window and exit
             self.root.quit()  # Exit the mainloop
             self.root.destroy()  # Destroy the window and cleanup resources
-            
+
         except Exception as e:
             self.logger.error(f"Error during application closing: {e}")
             # Force exit if there's an error

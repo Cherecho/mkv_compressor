@@ -56,10 +56,13 @@ class AssetManager:
                     # Check if we have a root window available
                     try:
                         import tkinter as tk
+
                         root = tk._default_root
                         if root is None:
                             # If no root window exists, we can't load images yet
-                            logger.warning(f"No tkinter root window available, cannot load {logo_path}")
+                            logger.warning(
+                                f"No tkinter root window available, cannot load {logo_path}"
+                            )
                             continue
                     except:
                         logger.warning("Tkinter not properly initialized")
