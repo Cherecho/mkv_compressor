@@ -350,6 +350,9 @@ class ProgressWindow:
         self.window.resizable(True, True)
         self.window.configure(bg=ModernStyle.PRIMARY_BG)
 
+        # Remove default title bar and create custom one
+        self.window.overrideredirect(True)
+
         # Modern window effects
         try:
             self.window.wm_attributes("-alpha", 0.97)  # Slight transparency
@@ -361,8 +364,97 @@ class ProgressWindow:
         self.window.grab_set()
         self._center_window()
 
+        # Create custom title bar first
+        self._create_custom_title_bar()
+        
         self.setup_ui()
         self.is_cancelled = False
+
+    def _create_custom_title_bar(self):
+        """Create a custom dark title bar for the progress window."""
+        try:
+            # Configure grid for custom title bar
+            self.window.grid_rowconfigure(0, weight=0)   # Title bar row
+            self.window.grid_rowconfigure(1, weight=1)   # Content row
+            self.window.grid_columnconfigure(0, weight=1)
+
+            # Create custom title bar frame
+            self.title_bar = tk.Frame(self.window, bg=ModernStyle.PRIMARY_BG, height=35)
+            self.title_bar.grid(row=0, column=0, sticky="nsew")
+            self.title_bar.grid_propagate(False)
+            
+            # Title bar content
+            title_frame = tk.Frame(self.title_bar, bg=ModernStyle.PRIMARY_BG)
+            title_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
+            self.title_bar.grid_rowconfigure(0, weight=1)
+            self.title_bar.grid_columnconfigure(0, weight=1)
+            
+            # Progress window icon and title
+            title_label = tk.Label(
+                title_frame, 
+                text="🎬 Compression Progress", 
+                bg=ModernStyle.PRIMARY_BG,
+                fg=ModernStyle.TEXT_PRIMARY,
+                font=("Segoe UI", 8, "bold")  # Smaller font size
+            )
+            title_label.grid(row=0, column=0, sticky="w")
+            
+            # Window controls
+            controls_frame = tk.Frame(title_frame, bg=ModernStyle.PRIMARY_BG)
+            controls_frame.grid(row=0, column=1, sticky="e")
+            title_frame.grid_columnconfigure(1, weight=1)
+            
+            # Close button
+            close_btn = tk.Button(
+                controls_frame,
+                text="✕",
+                bg=ModernStyle.ERROR,
+                fg=ModernStyle.TEXT_PRIMARY,
+                bd=0,
+                font=("Segoe UI", 8),
+                command=self.close_window,
+                relief="flat"
+            )
+            close_btn.grid(row=0, column=0, padx=2)
+            
+            # Make title bar draggable
+            self._make_draggable(self.title_bar)
+            
+        except Exception as e:
+            # Fallback: restore normal window if custom title bar fails
+            try:
+                self.window.overrideredirect(False)
+            except:
+                pass
+
+    def _make_draggable(self, widget):
+        """Make the title bar draggable to move the window."""
+        def start_move(event):
+            widget.start_x = event.x
+            widget.start_y = event.y
+
+        def stop_move(event):
+            widget.start_x = None
+            widget.start_y = None
+
+        def do_move(event):
+            if hasattr(widget, 'start_x') and widget.start_x is not None:
+                deltax = event.x - widget.start_x
+                deltay = event.y - widget.start_y
+                x = self.window.winfo_x() + deltax
+                y = self.window.winfo_y() + deltay
+                self.window.geometry(f"+{x}+{y}")
+
+        widget.bind("<Button-1>", start_move)
+        widget.bind("<ButtonRelease-1>", stop_move)
+        widget.bind("<B1-Motion>", do_move)
+        
+        # Also bind to all child widgets
+        for child in widget.winfo_children():
+            if isinstance(child, (tk.Label, tk.Frame)):
+                child.bind("<Button-1>", start_move)
+                child.bind("<ButtonRelease-1>", stop_move)
+                child.bind("<B1-Motion>", do_move)
 
     def _center_window(self):
         """Center the window on the screen."""
@@ -375,41 +467,16 @@ class ProgressWindow:
 
     def setup_ui(self):
         """Setup modern dark-themed progress window UI."""
-        # Header section with gradient-like effect
-        header_frame = GlassEffect.create_glass_frame(self.window)
-        header_frame.configure(bg=ModernStyle.ACCENT_PRIMARY, bd=0)
-        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=0, pady=0)
-        header_frame.columnconfigure(1, weight=1)
-
-        # Modern title with icon
-        title_label = tk.Label(
-            header_frame,
-            text="🎬 Video Compression",
-            bg=ModernStyle.ACCENT_PRIMARY,
-            fg=ModernStyle.TEXT_PRIMARY,
-            font=("Segoe UI", 16, "bold"),
-        )
-        title_label.grid(row=0, column=0, sticky=tk.W, padx=20, pady=15)
-
-        # Status indicator
-        self.status_indicator = tk.Label(
-            header_frame,
-            text="●",
-            bg=ModernStyle.ACCENT_PRIMARY,
-            fg=ModernStyle.SUCCESS,
-            font=("Segoe UI", 14),
-        )
-        self.status_indicator.grid(row=0, column=1, sticky=tk.E, padx=20, pady=15)
-
-        # Main content area with modern styling
+        # Main content area with modern styling (starts at row 1 due to custom title bar)
         main_frame = GlassEffect.create_glass_frame(self.window)
         main_frame.configure(bg=ModernStyle.PRIMARY_BG, bd=0)
         main_frame.grid(
             row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=20, pady=20
         )
 
+        # Configure window grid weights
         self.window.columnconfigure(0, weight=1)
-        self.window.rowconfigure(1, weight=1)
+        self.window.rowconfigure(1, weight=1)  # Main content row
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(2, weight=1)
 
@@ -439,6 +506,16 @@ class ProgressWindow:
             row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 15), pady=15
         )
         file_info_frame.columnconfigure(0, weight=1)
+
+        # Status indicator in the info card
+        self.status_indicator = tk.Label(
+            info_card,
+            text="●",
+            bg=ModernStyle.SURFACE_BG,
+            fg=ModernStyle.SUCCESS,
+            font=("Segoe UI", 14),
+        )
+        self.status_indicator.grid(row=0, column=2, sticky=tk.E, padx=15, pady=15)
 
         file_label = tk.Label(
             file_info_frame,
@@ -1175,6 +1252,9 @@ class CompressorGUI:
 
     def setup_ui(self):
         """Setup the modern user interface."""
+        # Initialize status variable for status updates
+        self.status_var = tk.StringVar(value="Ready")
+        
         # Determine the starting row based on whether we have a custom title bar
         start_row = 1 if hasattr(self, 'title_bar') else 0
         
@@ -2101,13 +2181,14 @@ Files to process: {len(self.input_files)}
         # Disable start button
         self.start_button.config(state=tk.DISABLED)
 
+        # Create progress window in main thread (important for Tkinter thread safety)
+        self.progress_window = ProgressWindow(self.root)
+
         # Start compression in separate thread
         threading.Thread(target=self._compression_worker, daemon=True).start()
 
     def _compression_worker(self):
         """Worker thread for compression process."""
-        progress_window = ProgressWindow(self.root)
-
         try:
             # Get compression settings
             preset_name = self.selected_preset.get()
@@ -2121,25 +2202,24 @@ Files to process: {len(self.input_files)}
             successful = 0
 
             for i, input_file in enumerate(self.input_files):
-                if progress_window.is_cancelled:
+                if self.progress_window.is_cancelled:
                     break
 
                 try:
-                    # Update progress window
+                    # Update progress window (thread-safe using root.after)
                     filename = os.path.basename(input_file)
-                    progress_window.update_current_file(filename)
-                    progress_window.add_log(f"Starting: {filename}")
+                    self.root.after(0, lambda f=filename: self.progress_window.update_current_file(f))
+                    self.root.after(0, lambda f=filename: self.progress_window.add_log(f"Starting: {f}"))
 
                     # Generate output filename
                     name, _ = os.path.splitext(filename)
                     output_file = os.path.join(output_dir, f"{name}_compressed.mkv")
 
-                    # Setup progress callback
+                    # Setup progress callback (thread-safe)
                     def progress_callback(percentage):
                         overall_progress = ((i + percentage / 100) / total_files) * 100
-                        progress_window.update_progress(
-                            overall_progress, f"File {i+1}/{total_files}"
-                        )
+                        self.root.after(0, lambda p=overall_progress, msg=f"File {i+1}/{total_files}": 
+                                      self.progress_window.update_progress(p, msg))
 
                     # Compress video
                     success = self.compressor.compress_video(
@@ -2152,44 +2232,44 @@ Files to process: {len(self.input_files)}
 
                     if success:
                         successful += 1
-                        progress_window.add_log(f"✓ Completed: {filename}")
+                        self.root.after(0, lambda f=filename: self.progress_window.add_log(f"✓ Completed: {f}"))
                         # Ensure progress shows 100% for this file
                         overall_progress = ((i + 1) / total_files) * 100
-                        progress_window.update_progress(
-                            overall_progress, f"File {i+1}/{total_files} completed"
-                        )
+                        self.root.after(0, lambda p=overall_progress, msg=f"File {i+1}/{total_files} completed": 
+                                      self.progress_window.update_progress(p, msg))
                     else:
-                        progress_window.add_log(f"✗ Failed: {filename}")
+                        self.root.after(0, lambda f=filename: self.progress_window.add_log(f"✗ Failed: {f}"))
 
                 except Exception as e:
-                    progress_window.add_log(f"✗ Error processing {filename}: {e}")
+                    self.root.after(0, lambda f=filename, err=str(e): 
+                                  self.progress_window.add_log(f"✗ Error processing {f}: {err}"))
 
             # Compression finished
-            if not progress_window.is_cancelled:
-                progress_window.update_progress(100, "All files processed")
-                progress_window.compression_finished(successful > 0)
+            if not self.progress_window.is_cancelled:
+                self.root.after(0, lambda: self.progress_window.update_progress(100, "All files processed"))
+                self.root.after(0, lambda: self.progress_window.compression_finished(successful > 0))
 
                 # Show notification if enabled
                 if self.show_notifications_var.get():
                     if successful == total_files:
-                        messagebox.showinfo(
+                        self.root.after(0, lambda: messagebox.showinfo(
                             "Compression Complete",
                             f"All {total_files} files compressed successfully!",
-                        )
+                        ))
                     else:
-                        messagebox.showwarning(
+                        self.root.after(0, lambda: messagebox.showwarning(
                             "Compression Complete",
                             f"{successful}/{total_files} files compressed successfully.",
-                        )
+                        ))
 
                 # Open output folder if enabled
                 if self.auto_open_output_var.get() and successful > 0:
-                    os.startfile(output_dir)
+                    self.root.after(0, lambda: os.startfile(output_dir))
 
         except Exception as e:
-            progress_window.add_log(f"Critical error: {e}")
-            progress_window.compression_finished(False)
-            messagebox.showerror("Compression Error", f"An error occurred:\n{e}")
+            self.root.after(0, lambda err=str(e): self.progress_window.add_log(f"Critical error: {err}"))
+            self.root.after(0, lambda: self.progress_window.compression_finished(False))
+            self.root.after(0, lambda err=str(e): messagebox.showerror("Compression Error", f"An error occurred:\n{err}"))
 
         finally:
             # Re-enable start button
