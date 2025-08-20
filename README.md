@@ -1,6 +1,39 @@
+
+
+<div align="center">
+
+<img src="assets/images/logo.png" alt="MKV Compressor Logo" width="300" />
+<p align="center">
+    <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="Python Version">
+    <img src="https://img.shields.io/badge/version-1.1.0-brightgreen.svg" alt="Version">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
+    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg" alt="Platform">
+    <br>
+    <img src="https://img.shields.io/badge/GUI-tkinter-orange.svg" alt="GUI Framework">
+    <img src="https://img.shields.io/badge/video-FFmpeg-red.svg" alt="Video Engine">
+    <a href="https://github.com/psf/black"><img src="https://img.shields.io/badge/code%20style-black-000000.svg" alt="Code style: black"></a>
+    <img src="https://img.shields.io/badge/status-active-success.svg" alt="Project Status: Active">
+    <br>
+    <img src="https://img.shields.io/badge/compression-H.264%20%7C%20H.265-blue.svg" alt="Codecs">
+    <img src="https://img.shields.io/badge/format-MKV-purple.svg" alt="Output Format">
+    <img src="https://img.shields.io/badge/interface-GUI%20%7C%20CLI-green.svg" alt="Interfaces">
+    <img src="https://img.shields.io/badge/batch-processing-yellow.svg" alt="Batch Processing">
+</p>
+
 # MKV Video Compressor
 
+</div>
+
 A professional video compression tool for MKV files with both GUI and command-line interfaces.
+
+
+
+## 🎥 Preview
+
+<!-- Add your demo GIF here -->
+![MKV Compressor Demo](assets/demo/app_preview.gif)
+
+*Demo showing the compression process*
 
 ## Features
 
@@ -225,6 +258,33 @@ ffmpeg -version
 - Ensure input files are not in use by other applications
 
 ## Advanced Usage
+
+### Custom Logo and Branding
+
+You can customize the application's appearance by adding your own logo:
+
+1. **Add your logo files** to the `assets/images/` directory:
+   - `logo.png` - Main header logo (recommended: 48x48px)
+   - `icon.ico` - Window icon for taskbar
+   - `logo_large.png` - Large logo for About dialog (recommended: 256x256px)
+
+2. **Supported formats**: PNG (recommended), ICO, JPG, GIF
+3. **Logo guidelines**:
+   - Use PNG format for transparency support
+   - Header logo: 48x48px or 64x64px for best results
+   - Large logo: 256x256px for About dialog
+   - Window icon: ICO format for Windows compatibility
+
+The application will automatically detect and use your custom logos when available.
+
+### Demo Recording
+
+To create a demo GIF for your customized version:
+
+1. **Record screen activity** showing key features
+2. **Save as GIF** to `assets/demo/app_preview.gif`
+3. **Recommended specs**: 800x600px, under 10MB, 10-30 seconds
+4. **Tools**: OBS Studio, ScreenToGif, LICEcap
 
 ### Custom Presets
 
