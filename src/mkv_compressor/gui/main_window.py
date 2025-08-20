@@ -21,6 +21,7 @@ except ImportError:
 from ..core import VideoCompressor, CompressionSettings, VideoInfo
 from ..utils.logger import setup_logger
 from ..utils.config import ConfigManager
+from ..utils.assets import get_logo, get_window_icon, get_large_logo
 
 
 class ModernStyle:
@@ -771,43 +772,397 @@ class CompressorGUI:
         self.compressor = VideoCompressor()
 
         # Initialize GUI with modern dark styling
+        self._setup_dark_mode_window()
+        self._create_main_interface()
+        self._setup_event_handlers()
+
+    def _setup_dark_mode_window(self):
+        """Setup the main window with dark mode styling."""
         if DND_AVAILABLE:
             self.root = TkinterDnD.Tk()
         else:
             self.root = tk.Tk()
 
-        self.root.title("🎬 MKV Video Compressor Pro")
+        self.root.title("MKV Video Compressor")
         self.root.geometry("1100x800")
         self.root.minsize(1000, 700)
         self.root.configure(bg=ModernStyle.PRIMARY_BG)
+        
+        # Setup proper window close handling
+        self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
+        
+        # Additional dark mode window styling
+        try:
+            # Center the window on screen
+            self.root.eval('tk::PlaceWindow . center')
+            
+            # Set window to appear on top during startup for better visibility
+            self.root.attributes('-topmost', True)
+            self.root.after(100, lambda: self.root.attributes('-topmost', False))
+        except Exception as e:
+            self.logger.warning(f"Failed to apply window styling: {e}")
 
-        # Configure window attributes for modern look
+        # Set custom window icon and enable dark title bar
+        self._configure_window_appearance()
+        
+        # Configure window icon BEFORE making it borderless (important for taskbar)
+        self._set_window_icon_early()
+
+    def _set_window_icon_early(self):
+        """Set window icon early, before making window borderless."""
+        try:
+            icon_path = get_window_icon()
+            if icon_path:
+                # Set the ICO icon first
+                self.root.iconbitmap(icon_path)
+                self.logger.info(f"Set early window icon: {icon_path}")
+                
+                # Force the window to update its icon in the taskbar
+                self.root.update_idletasks()
+                
+        except Exception as e:
+            self.logger.warning(f"Failed to set early window icon: {e}")
+
+    def _configure_window_appearance(self):
+        """Configure window appearance and dark mode title bar."""
+        # Set custom window icon if available - this must be done early for taskbar icon
+        try:
+            icon_path = get_window_icon()
+            if icon_path:
+                self.root.iconbitmap(icon_path)
+                self.logger.info(f"Set window icon: {icon_path}")
+                
+                # For borderless windows, also set the icon using iconphoto for better compatibility
+                try:
+                    # Load the icon as PhotoImage for additional icon setting
+                    logo_img = get_logo(size=(32, 32))
+                    if logo_img:
+                        self.root.iconphoto(True, logo_img)
+                        self.logger.info("Set additional PNG logo as window icon")
+                except Exception as e:
+                    self.logger.warning(f"Failed to set additional PNG icon: {e}")
+            else:
+                # Try to use PNG logo as window icon (alternative method)
+                logo_img = get_logo(size=(32, 32))
+                if logo_img:
+                    # For PNG logos, try setting as photoimage icon (limited support)
+                    try:
+                        self.root.iconphoto(True, logo_img)
+                        self.logger.info("Set PNG logo as window icon")
+                    except Exception as e:
+                        self.logger.warning(f"Failed to set PNG as window icon: {e}")
+        except Exception as e:
+            self.logger.warning(f"Failed to set window icon: {e}")
+
+        # Configure window attributes for modern dark look
         try:
             # Enable transparency and modern window effects (Windows 10/11)
-            self.root.wm_attributes("-alpha", 0.98)  # Slight transparency
-            # For Windows: enable modern window styling
+            self.root.wm_attributes("-alpha", 0.99)  # Slight transparency
+            
+            # Check user preference for dark mode method
+            dark_mode_config = self._load_dark_mode_config()
+            
+            # For Windows: enable dark mode window styling
             if hasattr(self.root, "wm_attributes"):
                 try:
+                    # Windows 10/11 dark mode title bar
+                    import sys
+                    if sys.platform == "win32":
+                        if dark_mode_config.get("force_custom_titlebar", False):
+                            self.logger.info("User configured: Force custom title bar (will be created later)")
+                            # Custom title bar will be created in _create_main_interface after logos load
+                        else:
+                            self._enable_windows_dark_mode()
+                    
                     self.root.wm_attributes("-transparentcolor", "")
                 except:
                     pass
         except:
             pass
 
+    def _load_dark_mode_config(self):
+        """Load dark mode configuration from user settings."""
+        try:
+            import json
+            from pathlib import Path
+            
+            config_file = Path.home() / ".config" / "mkv-compressor" / "dark_mode.json"
+            if config_file.exists():
+                with open(config_file, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            self.logger.debug(f"Could not load dark mode config: {e}")
+        
+        # Default configuration
+        return {"dark_mode_method": "auto", "force_custom_titlebar": False}
+
+    def _enable_windows_dark_mode(self):
+        """Enable Windows dark mode title bar."""
+        try:
+            import ctypes
+            from ctypes import wintypes
+            import sys
+            
+            # Wait for window to be fully created
+            self.root.update_idletasks()
+            
+            # Get window handle
+            hwnd = self.root.winfo_id()
+            
+            # Try different dark mode approaches for different Windows versions
+            success = False
+            
+            # Method 1: Force dark mode registry approach
+            try:
+                # Check if system is in dark mode
+                import winreg
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                                   r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+                apps_use_light_theme = winreg.QueryValueEx(key, "AppsUseLightTheme")[0]
+                winreg.CloseKey(key)
+                
+                if apps_use_light_theme == 0:  # System is in dark mode
+                    self.logger.info("System is in dark mode, applying window styling")
+                
+            except:
+                pass
+            
+            # Method 2: Windows 11/newer Windows 10 builds (attribute 20)
+            try:
+                DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+                value = ctypes.c_int(1)
+                result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                    hwnd, 
+                    DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    ctypes.byref(value),
+                    ctypes.sizeof(value)
+                )
+                if result == 0:
+                    success = True
+                    self.logger.info("Dark mode title bar enabled (attribute 20)")
+            except Exception as e:
+                self.logger.debug(f"Method 2 failed: {e}")
+            
+            # Method 3: Alternative approach for older Windows 10 (attribute 19)
+            if not success:
+                try:
+                    DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19
+                    value = ctypes.c_int(1)
+                    result = ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                        hwnd,
+                        DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1,
+                        ctypes.byref(value),
+                        ctypes.sizeof(value)
+                    )
+                    if result == 0:
+                        success = True
+                        self.logger.info("Dark mode title bar enabled (attribute 19)")
+                except Exception as e:
+                    self.logger.debug(f"Method 3 failed: {e}")
+            
+            # Method 4: Set window theme manually
+            if not success:
+                try:
+                    # Try to set dark theme using SetWindowTheme
+                    ctypes.windll.uxtheme.SetWindowTheme(hwnd, "DarkMode_Explorer", None)
+                    success = True
+                    self.logger.info("Dark theme applied using SetWindowTheme")
+                except Exception as e:
+                    self.logger.debug(f"Method 4 failed: {e}")
+            
+            # Method 5: Use custom borderless window approach
+            if not success:
+                self.logger.warning("Native dark mode not available, using custom approach")
+                self._create_custom_dark_titlebar()
+                return
+                
+        except Exception as e:
+            self.logger.warning(f"Failed to set dark title bar: {e}")
+            self._create_custom_dark_titlebar()
+
+    def _create_custom_dark_titlebar(self):
+        """Create a custom dark title bar when native Windows dark mode fails."""
+        try:
+            # Option 1: Create borderless window with custom title bar
+            self.logger.info("Creating custom dark title bar")
+            
+            # Store original geometry
+            geometry = self.root.geometry()
+            
+            # Force icon update before going borderless
+            try:
+                self.root.update()
+                self.root.focus_force()
+            except:
+                pass
+            
+            # Make window borderless
+            self.root.overrideredirect(True)
+            
+            # Try to maintain taskbar presence after going borderless
+            try:
+                # Set window attributes to try to keep it in taskbar
+                self.root.wm_attributes("-toolwindow", False)
+                self.root.update_idletasks()
+            except:
+                pass
+            
+            # Ensure grid is used consistently on root (avoid mixing pack/grid)
+            self.root.grid_rowconfigure(0, weight=0)   # Title bar row
+            self.root.grid_rowconfigure(1, weight=1)   # Content row
+            self.root.grid_columnconfigure(0, weight=1)
+
+            # Create custom title bar frame (using grid)
+            self.title_bar = tk.Frame(self.root, bg=ModernStyle.PRIMARY_BG, height=35)
+            self.title_bar.grid(row=0, column=0, sticky="nsew")
+            self.title_bar.grid_propagate(False)
+            
+            # Title bar content
+            title_frame = tk.Frame(self.title_bar, bg=ModernStyle.PRIMARY_BG)
+            title_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=5)
+            self.title_bar.grid_rowconfigure(0, weight=1)
+            self.title_bar.grid_columnconfigure(0, weight=1)
+            
+            # App icon and title (use smaller logo for title bar)
+            if self.app_logo:
+                # Create a smaller version of the logo for the title bar
+                try:
+                    small_logo = get_logo(size=(24, 24))  # Much smaller for title bar
+                    if small_logo:
+                        icon_label = tk.Label(title_frame, image=small_logo, bg=ModernStyle.PRIMARY_BG)
+                        icon_label.grid(row=0, column=0, padx=(0, 8), sticky="w")
+                        # Keep reference to prevent garbage collection
+                        self.title_bar_logo = small_logo
+                except:
+                    pass
+            
+            title_label = tk.Label(
+                title_frame, 
+                text="MKV Video Compressor", 
+                bg=ModernStyle.PRIMARY_BG,
+                fg=ModernStyle.TEXT_PRIMARY,
+                font=("Segoe UI", 8, "bold")  # Smaller font size
+            )
+            title_label.grid(row=0, column=1, sticky="w")
+            
+            # Window controls
+            controls_frame = tk.Frame(title_frame, bg=ModernStyle.PRIMARY_BG)
+            controls_frame.grid(row=0, column=2, sticky="e")
+            title_frame.grid_columnconfigure(2, weight=1)
+            
+            # Minimize button
+            min_btn = tk.Button(
+                controls_frame,
+                text="🗕",
+                bg=ModernStyle.PRIMARY_BG,
+                fg=ModernStyle.TEXT_PRIMARY,
+                bd=0,
+                font=("Segoe UI", 8),
+                command=lambda: self.root.iconify(),
+                relief="flat"
+            )
+            min_btn.grid(row=0, column=0, padx=2)
+            
+            # Close button
+            close_btn = tk.Button(
+                controls_frame,
+                text="✕",
+                bg=ModernStyle.ERROR,
+                fg=ModernStyle.TEXT_PRIMARY,
+                bd=0,
+                font=("Segoe UI", 8),
+                command=self._on_closing,
+                relief="flat"
+            )
+            close_btn.grid(row=0, column=1, padx=2)
+            
+            # Make title bar draggable
+            self._make_draggable(self.title_bar)
+            
+            # Restore geometry
+            self.root.geometry(geometry)
+            
+            self.logger.info("Custom dark title bar created successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to create custom title bar: {e}")
+            # Fallback: restore normal window
+            try:
+                self.root.overrideredirect(False)
+            except:
+                pass
+
+    def _make_draggable(self, widget):
+        """Make a widget draggable to move the window."""
+        def start_move(event):
+            widget.start_x = event.x
+            widget.start_y = event.y
+
+        def stop_move(event):
+            widget.start_x = None
+            widget.start_y = None
+
+        def do_move(event):
+            if hasattr(widget, 'start_x') and widget.start_x is not None:
+                deltax = event.x - widget.start_x
+                deltay = event.y - widget.start_y
+                x = self.root.winfo_x() + deltax
+                y = self.root.winfo_y() + deltay
+                self.root.geometry(f"+{x}+{y}")
+
+        widget.bind("<Button-1>", start_move)
+        widget.bind("<ButtonRelease-1>", stop_move)
+        widget.bind("<B1-Motion>", do_move)
+        
+        # Also bind to all child widgets
+        for child in widget.winfo_children():
+            if isinstance(child, (tk.Label, tk.Frame)):
+                child.bind("<Button-1>", start_move)
+                child.bind("<ButtonRelease-1>", stop_move)
+                child.bind("<B1-Motion>", do_move)
+
+    def _apply_alternative_dark_styling(self):
+        """Apply alternative dark styling when native dark mode is not available."""
+        try:
+            # Remove window border for a more modern look (optional fallback)
+            # self.root.configure(relief='flat', bd=0)
+            
+            # Add a subtle dark border effect
+            self.root.configure(highlightbackground=ModernStyle.BORDER_COLOR)
+            self.root.configure(highlightcolor=ModernStyle.ACCENT_PRIMARY)
+            
+            self.logger.info("Applied alternative dark styling")
+        except Exception as e:
+            self.logger.warning(f"Failed to apply alternative dark styling: {e}")
+
+    def _create_main_interface(self):
+        """Create the main application interface."""
         # Configure modern styles
         ModernStyle.configure_styles()
 
-        # Set modern window icon if available
-        try:
-            # Create a modern icon programmatically or load from file
-            pass
-        except:
-            pass
-
-        # Variables
+        # Variables (initialize before loading logos)
         self.input_files: List[str] = []
         self.output_directory = tk.StringVar()
         self.selected_preset = tk.StringVar(value="Balanced")
+
+        # Load application logo for use in GUI (after root window is fully initialized)
+        self.app_logo = get_logo(size=(48, 48))  # Header logo
+        self.app_logo_large = get_large_logo()  # About dialog logo
+        self.about_small_logo = None  # Will be loaded in about tab
+
+        # Now check if we need to create custom title bar (after logos are loaded)
+        dark_mode_config = self._load_dark_mode_config()
+        if dark_mode_config.get("force_custom_titlebar", False):
+            self._create_custom_dark_titlebar()
+
+        # Load settings
+        self.load_settings()
+
+        # Create the main interface
+        self.setup_ui()
+
+    def _setup_event_handlers(self):
+        """Setup event handlers for the application."""
 
         # Load settings
         self.load_settings()
@@ -820,23 +1175,37 @@ class CompressorGUI:
 
     def setup_ui(self):
         """Setup the modern user interface."""
-        # Main container with padding
-        main_container = ttk.Frame(self.root, style="Modern.TFrame", padding="0")
-        main_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Determine the starting row based on whether we have a custom title bar
+        start_row = 1 if hasattr(self, 'title_bar') else 0
+        
+        # Main container with minimal padding when custom title bar is present
+        padding_top = "0" if hasattr(self, 'title_bar') else "0"
+        
+        # Main container with padding (always use grid on root)
+        main_container = ttk.Frame(self.root, style="Modern.TFrame", padding=f"{padding_top} 0 0 0")
+        main_container.grid(row=start_row, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=0, pady=(0, 0))
 
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)  # Main container gets all the space
+        # Configure root grid if not already done
+        if not hasattr(self, 'title_bar'):
+            self.root.columnconfigure(0, weight=1)
+            self.root.rowconfigure(start_row, weight=1)
+        
         main_container.columnconfigure(0, weight=1)
-        main_container.rowconfigure(1, weight=1)
+        main_container.rowconfigure(1 if not hasattr(self, 'title_bar') else 0, weight=1)
 
-        # Header section
-        self.create_header(main_container)
+        # Header section (only if we don't have a custom title bar)
+        if not hasattr(self, 'title_bar'):
+            self.create_header(main_container)
+            notebook_row = 1
+            notebook_pady = (10, 20)
+        else:
+            # Skip header creation since we have a custom title bar
+            notebook_row = 0
+            notebook_pady = (5, 20)  # Minimal top padding when custom title bar
 
         # Create modern dark notebook for tabs
         self.notebook = ttk.Notebook(main_container, style="Modern.TNotebook")
-        self.notebook.grid(
-            row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=15, pady=(0, 15)
-        )
+        self.notebook.grid(row=notebook_row, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=20, pady=notebook_pady)
 
         # Main compression tab
         self.main_frame = ttk.Frame(self.notebook, style="Modern.TFrame")
@@ -857,8 +1226,6 @@ class CompressorGUI:
         self.notebook.add(self.about_frame, text="ℹ️ About")
         self.setup_about_tab()
 
-        # Status bar
-        self.setup_status_bar()
 
     def create_header(self, parent):
         """Create modern dark header section with gradient effect."""
@@ -868,14 +1235,28 @@ class CompressorGUI:
         header_frame.columnconfigure(1, weight=1)
 
         # App icon/title with modern styling
+        header_content = tk.Frame(header_frame, bg=ModernStyle.ACCENT_PRIMARY)
+        header_content.grid(row=0, column=0, sticky=tk.W, padx=25, pady=20)
+
+        # Logo (if available)
+        if self.app_logo:
+            logo_label = tk.Label(
+                header_content,
+                image=self.app_logo,
+                bg=ModernStyle.ACCENT_PRIMARY,
+                borderwidth=0,
+            )
+            logo_label.grid(row=0, column=0, padx=(0, 15), pady=0)
+
+        # Title text
         title_label = tk.Label(
-            header_frame,
-            text="🎬 MKV Video Compressor Pro",
+            header_content,
+            text="MKV Video Compressor",
             bg=ModernStyle.ACCENT_PRIMARY,
             fg=ModernStyle.TEXT_PRIMARY,
             font=("Segoe UI", 18, "bold"),
         )
-        title_label.grid(row=0, column=0, sticky=tk.W, padx=25, pady=20)
+        title_label.grid(row=0, column=1, sticky=tk.W, pady=0)
 
         # Version and status info
         info_frame = tk.Frame(header_frame, bg=ModernStyle.ACCENT_PRIMARY)
@@ -1224,60 +1605,179 @@ class CompressorGUI:
         ).grid(row=0, column=0)
 
     def setup_about_tab(self):
-        """Setup the modern about tab."""
-        # Main container with padding
+        """Setup the modern about tab with scrolling support."""
+        # Create a canvas with scrollbar for scrolling
+        canvas = tk.Canvas(
+            self.about_frame,
+            bg=ModernStyle.PRIMARY_BG,
+            highlightthickness=0,
+            borderwidth=0
+        )
+        scrollbar = ttk.Scrollbar(
+            self.about_frame,
+            orient="vertical",
+            command=canvas.yview,
+            style="Modern.Vertical.TScrollbar"
+        )
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Grid the canvas and scrollbar
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
+        # Configure grid weights
+        self.about_frame.grid_rowconfigure(0, weight=1)
+        self.about_frame.grid_columnconfigure(0, weight=1)
+
+        # Create scrollable frame inside canvas
+        scrollable_frame = ttk.Frame(canvas, style="Modern.TFrame")
+        canvas_window = canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+
+        # Configure scrollable frame to expand
+        scrollable_frame.grid_rowconfigure(0, weight=1)
+        scrollable_frame.grid_columnconfigure(0, weight=1)
+
+        # Main container with reduced side padding to use more width
         about_container = ttk.Frame(
-            self.about_frame, style="Modern.TFrame", padding="30"
+            scrollable_frame, style="Modern.TFrame", padding="30 30 10 30"  # top, right, bottom, left
         )
         about_container.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         about_container.columnconfigure(0, weight=1)
 
-        # App info section
-        info_section = ttk.Frame(about_container, style="Modern.TFrame")
-        info_section.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
-        info_section.columnconfigure(0, weight=1)
+        # Configure scrolling behavior
+        def configure_scroll_region(event=None):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Update canvas window width to match canvas width (minus scrollbar width)
+            canvas_width = canvas.winfo_width()
+            if canvas_width > 1:  # Only update if canvas has been drawn
+                canvas.itemconfig(canvas_window, width=canvas_width)
 
-        # App title and version
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        # Bind scroll events
+        scrollable_frame.bind("<Configure>", configure_scroll_region)
+        canvas.bind("<Configure>", configure_scroll_region)
+        
+        # Initial configuration to set proper width
+        canvas.update_idletasks()
+        configure_scroll_region()
+        
+        # Bind mousewheel to canvas and all child widgets for smooth scrolling
+        def bind_mousewheel(widget):
+            widget.bind("<MouseWheel>", on_mousewheel)
+            for child in widget.winfo_children():
+                bind_mousewheel(child)
+        
+        # Bind after content is created
+        self.about_frame.after(100, lambda: bind_mousewheel(self.about_frame))
+
+        # Header section with logo and basic info
+        header_section = ttk.Frame(about_container, style="Modern.TFrame")
+        header_section.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 25))
+        header_section.columnconfigure(1, weight=1)
+
+        # Small professional logo (if available)
+        if self.app_logo_large:
+            # Use a smaller logo for professional appearance
+            small_logo = get_logo(size=(48, 48))  # Much smaller logo
+            if small_logo:
+                logo_label = tk.Label(
+                    header_section,
+                    image=small_logo,
+                    bg=ModernStyle.PRIMARY_BG,
+                    borderwidth=0,
+                )
+                logo_label.grid(row=0, column=0, rowspan=2, padx=(0, 15), pady=(0, 5))
+                # Store reference to prevent garbage collection
+                self.about_small_logo = small_logo
+
+        # App title and tagline
         title_label = ttk.Label(
-            info_section,
-            text="🎬 MKV Video Compressor Pro",
+            header_section,
+            text="🎬 MKV Video Compressor",
             style="Title.TLabel",
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 18, "bold"),
         )
-        title_label.grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+        title_label.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=(0, 5))
 
-        version_label = ttk.Label(
-            info_section,
-            text="Version 1.1.0",
+        tagline_label = ttk.Label(
+            header_section,
+            text="Professional Video Compression Suite",
             style="Modern.TLabel",
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 11, "italic"),
+            foreground=ModernStyle.TEXT_SECONDARY,
         )
-        version_label.grid(row=1, column=0, sticky=tk.W, pady=(0, 15))
+        tagline_label.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(0, 15))
 
-        # Description
-        desc_text = "A professional video compression tool for MKV files with modern interface and advanced features."
+        # Version and build info section
+        version_section = ttk.LabelFrame(
+            about_container, text="📦 Version Information", style="Modern.TLabelframe", padding="15"
+        )
+        version_section.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        version_section.columnconfigure(1, weight=1)
+
+        # Version details
+        version_info = [
+            ("Version:", "1.2.0"),
+            ("Build:", "Release"),
+            ("Release Date:", "August 2025"),
+            ("Architecture:", "x64"),
+            ("Python Version:", "3.8+"),
+        ]
+
+        for i, (label_text, value_text) in enumerate(version_info):
+            label = ttk.Label(
+                version_section,
+                text=label_text,
+                style="Modern.TLabel",
+                font=("Segoe UI", 9, "bold"),
+            )
+            label.grid(row=i, column=0, sticky=tk.W, padx=(0, 10), pady=2)
+            
+            value = ttk.Label(
+                version_section,
+                text=value_text,
+                style="Modern.TLabel",
+                font=("Segoe UI", 9),
+            )
+            value.grid(row=i, column=1, sticky=tk.W, pady=2)
+
+        # Description section
+        desc_section = ttk.LabelFrame(
+            about_container, text="📝 Description", style="Modern.TLabelframe", padding="15"
+        )
+        desc_section.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+
+        desc_text = """A professional-grade video compression application designed for efficiency and ease of use. 
+Built with modern technology stack and optimized for high-quality video processing. 
+Perfect for content creators, video professionals, and anyone who needs reliable video compression."""
+        
         desc_label = ttk.Label(
-            info_section,
+            desc_section,
             text=desc_text,
             style="Modern.TLabel",
             font=("Segoe UI", 10),
-            wraplength=600,
+            wraplength=650,
+            justify=tk.LEFT,
         )
-        desc_label.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        desc_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
         # Features section
         features_section = ttk.LabelFrame(
-            about_container, text="✨ Features", style="Modern.TLabelframe", padding="15"
+            about_container, text="✨ Key Features", style="Modern.TLabelframe", padding="15"
         )
-        features_section.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        features_section.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
 
-        features_text = """• High-quality video compression using FFmpeg
-• Multiple compression presets (Fast, Balanced, High Quality, Custom)
-• Batch processing support for multiple files
-• Modern drag-and-drop interface
-• Real-time progress monitoring with dynamic updates
-• Custom compression settings and advanced options
-• Cross-platform support (Windows, macOS, Linux)"""
+        features_text = """• Advanced video compression with FFmpeg integration
+• Multiple optimization presets (Fast, Balanced, High Quality, Custom)
+• Batch processing with parallel compression support
+• Professional drag-and-drop interface with file validation
+• Real-time progress monitoring and detailed logging
+• Comprehensive format support (MP4, AVI, MOV, MKV, WMV, FLV, WebM)
+• Custom compression profiles and advanced parameter control
+• Automatic quality optimization and file size prediction
+• Cross-platform compatibility (Windows, macOS, Linux)"""
 
         features_label = ttk.Label(
             features_section,
@@ -1288,19 +1788,47 @@ class CompressorGUI:
         )
         features_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
-        # Requirements section
-        req_section = ttk.LabelFrame(
+        # Technical specifications section
+        tech_section = ttk.LabelFrame(
             about_container,
-            text="📋 Requirements",
+            text="⚙️ Technical Specifications",
             style="Modern.TLabelframe",
             padding="15",
         )
-        req_section.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        tech_section.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
 
-        req_text = """• FFmpeg must be installed and available in PATH
-• Python 3.8 or higher
-• Supported input formats: MP4, AVI, MOV, MKV, WMV, FLV, WebM, M4V
-• Output format: MKV (Matroska Video)"""
+        tech_text = """• Built with Python 3.8+ and modern tkinter framework
+• FFmpeg-powered compression engine for maximum compatibility
+• Multi-threading support for improved performance
+• Memory-efficient processing for large video files
+• Supports hardware acceleration when available
+• Unicode filename and path support
+• Comprehensive error handling and recovery systems"""
+
+        tech_label = ttk.Label(
+            tech_section,
+            text=tech_text,
+            style="Modern.TLabel",
+            font=("Segoe UI", 9),
+            justify=tk.LEFT,
+        )
+        tech_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        # Requirements section
+        req_section = ttk.LabelFrame(
+            about_container,
+            text="📋 System Requirements",
+            style="Modern.TLabelframe",
+            padding="15",
+        )
+        req_section.grid(row=5, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+
+        req_text = """• Operating System: Windows 10/11, macOS 10.14+, or Linux (Ubuntu 18.04+)
+• Python 3.8 or higher with tkinter support
+• FFmpeg must be installed and accessible in system PATH
+• Minimum 4GB RAM recommended (8GB+ for 4K video processing)
+• At least 1GB free disk space for temporary files
+• Display resolution: 1024x768 minimum (1920x1080 recommended)"""
 
         req_label = ttk.Label(
             req_section,
@@ -1311,35 +1839,6 @@ class CompressorGUI:
         )
         req_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
 
-        # Credits section
-        credits_section = ttk.LabelFrame(
-            about_container,
-            text="👨‍💻 Credits",
-            style="Modern.TLabelframe",
-            padding="15",
-        )
-        credits_section.grid(row=3, column=0, sticky=(tk.W, tk.E))
-
-        credits_text = "Created with Python, tkinter, and FFmpeg.\nBuilt with ❤️ for video enthusiasts."
-        credits_label = ttk.Label(
-            credits_section,
-            text=credits_text,
-            style="Modern.TLabel",
-            font=("Segoe UI", 9),
-            justify=tk.CENTER,
-        )
-        credits_label.grid(row=0, column=0, sticky=(tk.W, tk.E))
-
-    def setup_status_bar(self):
-        """Setup the modern status bar."""
-        self.status_bar = ttk.Frame(self.root, style="Modern.TFrame", padding="5")
-        self.status_bar.grid(row=1, column=0, sticky=(tk.W, tk.E))
-
-        self.status_var = tk.StringVar(value="Ready")
-        status_label = ttk.Label(
-            self.status_bar, textvariable=self.status_var, style="Modern.TLabel"
-        )
-        status_label.grid(row=0, column=0, sticky=tk.W, padx=10)
 
     def setup_log_handler(self):
         """Setup logging handler to display logs in GUI."""
@@ -1699,6 +2198,30 @@ Files to process: {len(self.input_files)}
     def update_status(self, message: str):
         """Update status bar message."""
         self.status_var.set(message)
+
+    def _on_closing(self):
+        """Handle window closing event with proper cleanup."""
+        try:
+            # Stop any running compression processes
+            if hasattr(self, 'compressor') and self.compressor:
+                # Add any necessary cleanup for the compressor here
+                pass
+            
+            # Save configuration before closing
+            if hasattr(self, 'config_manager'):
+                try:
+                    self.config_manager.save_config()
+                except Exception as e:
+                    self.logger.warning(f"Failed to save config on exit: {e}")
+            
+            # Destroy the window and exit
+            self.root.quit()  # Exit the mainloop
+            self.root.destroy()  # Destroy the window and cleanup resources
+            
+        except Exception as e:
+            self.logger.error(f"Error during application closing: {e}")
+            # Force exit if there's an error
+            self.root.destroy()
 
     def run(self):
         """Run the GUI application."""
