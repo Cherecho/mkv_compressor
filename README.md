@@ -31,7 +31,7 @@ A professional video compression tool for MKV files with both GUI and command-li
 ## 🎥 Preview
 
 <!-- Add your demo GIF here -->
-![MKV Compressor Demo](assets/demo/app_preview.gif)
+![MKV Compressor Demo](assets/images/app_preview.gif)
 
 *Demo showing the compression process*
 
