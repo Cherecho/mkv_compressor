@@ -8,6 +8,7 @@ recursive-include src/mkv_compressor *.py
 recursive-include config *.json
 recursive-include docs *.md *.rst *.txt
 recursive-include tests *.py
+recursive-include assets *.png *.ico *.jpg *.jpeg *.gif *.md *.txt
 
 # Exclude development files
 exclude .gitignore
