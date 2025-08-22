@@ -47,7 +47,7 @@ doc_requirements = [
 
 setup(
     name="mkv-video-compressor",
-    version="1.1.0",
+    version="1.2.0",
     author="Your Name",
     author_email="your.email@example.com",
     description="A professional video compression tool for MKV files",

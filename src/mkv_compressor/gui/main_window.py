@@ -1373,7 +1373,7 @@ class CompressorGUI:
 
         version_label = tk.Label(
             info_frame,
-            text="v1.1.0",
+            text="v1.2.0",
             bg=ModernStyle.ACCENT_PRIMARY,
             fg=ModernStyle.TEXT_PRIMARY,
             font=("Segoe UI", 10),
